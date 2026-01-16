@@ -7,6 +7,7 @@ import BoardView from './components/views/BoardView';
 import SummaryView from './components/views/SummaryView';
 import CalendarView from './components/views/CalendarView';
 import TimelineView from './components/views/TimelineView';
+import IssuesView from './components/views/IssuesView';
 import CreateProjectModal from './components/ui/CreateProjectModal';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -435,6 +436,13 @@ function Dashboard({ user, onLogout, onUserUpdate }) {
                                                         />
                                                     )}
                                                     {activeTab === 'timeline' && <TimelineView tasks={filteredTasks} />}
+                                                    {activeTab === 'issues' && (
+                                                        <IssuesView
+                                                            tasks={filteredTasks}
+                                                            onTaskUpdate={handleTaskUpdate}
+                                                            currentUser={user}
+                                                        />
+                                                    )}
                                                 </>
                                             );
                                         })()}

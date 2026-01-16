@@ -24,7 +24,14 @@ const TaskSchema = new mongoose.Schema({
     dueDate: { type: String },
     parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', default: null },
     expanded: { type: Number, default: 1 },
-    projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true }
+    projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true },
+    issues: [{
+        id: String,
+        problem: String,
+        solution: String,
+        createdBy: String,
+        createdAt: String
+    }]
 });
 
 TaskSchema.set('toJSON', toJSONConfig);

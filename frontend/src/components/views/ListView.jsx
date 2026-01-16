@@ -347,7 +347,7 @@ const ListView = ({ tasks, onTaskUpdate, onTaskCreate, onTaskDelete, onTasksDele
                                         <span className="material-icons text-gray-400 text-lg">add</span>
                                     </td>
                                     <td colSpan="9" className="py-0.5 px-2 text-xs text-gray-400 font-medium">
-                                        Create issue
+                                        Create Task
                                     </td>
                                     <td className="py-0.5 px-2 border-l border-border-light dark:border-border-dark bg-white dark:bg-background-dark sticky right-0 z-20"></td>
                                 </tr>
