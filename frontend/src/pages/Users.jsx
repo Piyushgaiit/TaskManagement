@@ -95,9 +95,7 @@ const Users = ({ user: currentUser }) => {
                             Team members and roles {currentUser?.role === 'TMA' && '(Admin Access)'}
                         </p>
                     </div>
-                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2">
-                        <span>Invite people</span>
-                    </button>
+
                 </div>
 
                 {/* Filters & Search */}
@@ -114,10 +112,7 @@ const Users = ({ user: currentUser }) => {
                             className="block w-full pl-10 pr-3 py-2 border border-border-light dark:border-border-dark rounded-md leading-5 bg-gray-50 dark:bg-gray-700 text-text-light dark:text-text-dark placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                         />
                     </div>
-                    <button className="flex items-center gap-2 px-3 py-2 border border-border-light dark:border-border-dark rounded-md text-text-secondary-light dark:text-text-secondary-dark hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                        <Filter className="h-4 w-4" />
-                        <span>Filter</span>
-                    </button>
+
                 </div>
             </div>
 

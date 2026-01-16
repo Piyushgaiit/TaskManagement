@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import { PrioritySelect, StatusSelect, DatePicker, AssigneeSelect } from '../ui/TaskEditors';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
+// Helper to get initials
+const getInitials = (name) => {
+    if (!name) return 'PG';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
 const ListView = ({ tasks, onTaskUpdate, onTaskCreate, onTaskDelete, onTasksDelete, users, currentUser }) => {
     const [inlineCreateValue, setInlineCreateValue] = useState('');
     const [isInlineCreateVisible, setIsInlineCreateVisible] = useState(false);
@@ -33,33 +41,193 @@ const ListView = ({ tasks, onTaskUpdate, onTaskCreate, onTaskDelete, onTasksDele
         }
     };
 
-    // Group tasks by parent
-    const parents = tasks.filter(t => !t.parentId);
+    const [filters, setFilters] = useState({
+        search: '',
+        assignee: [],
+        status: [],
+        type: [],
+        epic: []
+    });
+    const [activeFilterDropdown, setActiveFilterDropdown] = useState(null);
 
-    // Sort Logic (Basic for now, can be state-driven later)
-    // parents.sort((a,b) => b.id - a.id); 
+    // Filter Logic
+    const toggleFilter = (category, value) => {
+        setFilters(prev => {
+            // Enforce single selection for Status
+            if (category === 'status') {
+                const isAlreadySelected = prev[category].includes(value);
+                return { ...prev, [category]: isAlreadySelected ? [] : [value] };
+            }
+
+            const current = prev[category];
+            const updated = current.includes(value)
+                ? current.filter(item => item !== value)
+                : [...current, value];
+            return { ...prev, [category]: updated };
+        });
+    };
+
+    const clearFilters = () => {
+        setFilters({
+            search: '',
+            assignee: [],
+            status: [],
+            type: [],
+            epic: []
+        });
+    };
+
+    // Derived State: Filtered Tasks
+    const filteredTasks = tasks.filter(task => {
+        const matchesSearch = task.title.toLowerCase().includes(filters.search.toLowerCase()) ||
+            task.key.toLowerCase().includes(filters.search.toLowerCase());
+
+        const matchesAssignee = filters.assignee.length === 0 || filters.assignee.includes(task.assignee);
+        const matchesStatus = filters.status.length === 0 || filters.status.some(s => s.toUpperCase() === (task.status || '').toUpperCase());
+        // Note: Type and Epic are placeholders as they aren't in the schema yet, but logic is ready
+        const matchesType = filters.type.length === 0 || (task.type && filters.type.includes(task.type));
+
+        return matchesSearch && matchesAssignee && matchesStatus && matchesType;
+    });
+
+    // Group tasks by parent (using filtered tasks to identify which parents/families to show)
+    // We want to show a parent if:
+    // 1. The parent itself matches the filter.
+    // 2. OR any of its subtasks match the filter (to preserve hierarchy context).
+    const matchingIds = new Set(filteredTasks.map(t => t.id));
+    const parentIdsToShow = new Set();
+    filteredTasks.forEach(t => {
+        if (!t.parentId) {
+            parentIdsToShow.add(t.id);
+        } else {
+            parentIdsToShow.add(t.parentId);
+        }
+    });
+
+    // Create the final list of parents to render. 
+    // We look at ALL tasks to find the parent objects, because a matching subtask's parent might not be in 'filteredTasks'.
+    const parents = tasks.filter(t => !t.parentId && parentIdsToShow.has(t.id));
+
+    // Available Options for Filters
+    const uniqueAssignees = Array.from(new Set(tasks.map(t => t.assignee).filter(Boolean)));
+    const uniqueStatuses = Array.from(new Set([
+        'TO DO', 'IN PROGRESS', 'DONE',
+        ...tasks.map(t => t.status).filter(Boolean)
+    ]));
+
+    const filterOptions = {
+        Assignee: uniqueAssignees,
+        Status: uniqueStatuses,
+        Type: ['Task', 'Bug', 'Story', 'Epic'], // Placeholder options
+        Epic: [] // Placeholders
+    };
+
+    // Calculate involved users for Quick Filters
+    const involvedNames = new Set([
+        currentUser?.name,
+        ...tasks.map(t => t.assignee),
+        ...tasks.map(t => t.reporter)
+    ].filter(Boolean));
+
+    // Map names to user objects if available in 'users' prop, or create placeholder
+    const quickFilterUsers = Array.from(involvedNames).map(name => {
+        const found = users.find(u => u.name === name);
+        return found || { name, id: name }; // Fallback if user not in full list
+    });
 
     return (
-        <div id="list-view" className="flex-grow flex flex-col overflow-hidden">
+        <div id="list-view" className="flex-grow flex flex-col overflow-hidden" onClick={() => setActiveFilterDropdown(null)}>
             {/* Filter Bar */}
             <div className="flex items-center justify-between px-6 py-1 border-b border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark flex-shrink-0">
                 <div className="flex items-center flex-wrap gap-2 md:gap-4">
+                    {/* Search Input */}
                     <div className="relative">
                         <span className="material-icons-outlined absolute left-2 top-1 text-gray-500 dark:text-gray-400 text-base">search</span>
-                        <input className="pl-8 pr-3 py-1 border border-border-light dark:border-border-dark rounded bg-white dark:bg-surface-dark focus:ring-1 focus:ring-primary outline-none text-xs dark:text-white" placeholder="Search" type="text" />
+                        <input
+                            className="pl-8 pr-3 py-1 border border-border-light dark:border-border-dark rounded bg-white dark:bg-surface-dark focus:ring-1 focus:ring-primary outline-none text-xs dark:text-white"
+                            placeholder="Search"
+                            type="text"
+                            value={filters.search}
+                            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                        />
                     </div>
+
+                    {/* Quick User Filters */}
                     <div className="flex -space-x-1">
-                        <div className="w-6 h-6 rounded-full bg-[#1F2E4D] text-white flex items-center justify-center text-[9px] font-bold border-2 border-white dark:border-gray-800 z-10">PG</div>
-                        <button className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                        {quickFilterUsers.map(user => (
+                            <div
+                                key={user.name}
+                                className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold border-2 border-white dark:border-gray-800 z-10 cursor-pointer transition-transform hover:scale-110 ${filters.assignee.includes(user.name) ? 'ring-2 ring-primary' : ''} bg-[#1F2E4D] text-white`}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFilter('assignee', user.name);
+                                }}
+                                title={`Filter by ${user.name}`}
+                            >
+                                {getInitials(user.name)}
+                            </div>
+                        ))}
+                        <button className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors z-0">
                             <span className="material-icons text-gray-400 text-[12px]">add</span>
                         </button>
                     </div>
-                    {['Epic', 'Type', 'Status', 'Assignee'].map(filter => (
-                        <button key={filter} className="px-2 py-1 border border-border-light dark:border-border-dark rounded bg-white dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-gray-700 text-xs font-medium flex items-center gap-1 transition-colors">
-                            {filter} <span className="material-icons-outlined text-sm">expand_more</span>
-                        </button>
-                    ))}
-                    <button className="px-2 py-1 border-none text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded text-xs font-medium transition-colors">Clear filters</button>
+
+                    {/* Dropdown Filters */}
+                    {['Status', 'Assignee'].map(filterName => {
+                        const category = filterName.toLowerCase();
+                        const isActive = filters[category] && filters[category].length > 0;
+                        const isOpen = activeFilterDropdown === filterName;
+
+                        return (
+                            <div key={filterName} className="relative">
+                                <button
+                                    className={`px-2 py-1 border rounded text-xs font-medium flex items-center gap-1 transition-colors ${isActive ? 'bg-blue-50 border-primary text-primary' : 'border-border-light dark:border-border-dark bg-white dark:bg-surface-dark hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setActiveFilterDropdown(isOpen ? null : filterName);
+                                    }}
+                                >
+                                    {filterName}
+                                    {isActive && <span className="bg-primary text-white text-[8px] px-1 rounded-full">{filters[category].length}</span>}
+                                    <span className="material-icons-outlined text-sm">expand_more</span>
+                                </button>
+
+                                {isOpen && (
+                                    <div
+                                        className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-[#2C333A] border border-border-light dark:border-border-dark rounded shadow-lg z-50 py-1"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {filterOptions[filterName] && filterOptions[filterName].length > 0 ? (
+                                            filterOptions[filterName].map(option => (
+                                                <div
+                                                    key={option}
+                                                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                                                    onClick={() => toggleFilter(category, option)}
+                                                >
+                                                    <input
+                                                        type={filterName === 'Status' ? 'radio' : 'checkbox'}
+                                                        checked={filters[category].includes(option)}
+                                                        onChange={() => { }} // Handled by div click
+                                                        className={`text-primary focus:ring-primary w-3 h-3 ${filterName === 'Status' ? 'rounded-full' : 'rounded'}`}
+                                                    />
+                                                    <span className="text-xs text-text-light dark:text-text-dark truncate">{option}</span>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="px-3 py-2 text-xs text-gray-400 italic">No options available</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+
+                    <button
+                        onClick={clearFilters}
+                        className="px-2 py-1 border-none text-primary hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded text-xs font-medium transition-colors"
+                    >
+                        Clear filters
+                    </button>
                 </div>
             </div>
 
@@ -73,9 +241,9 @@ const ListView = ({ tasks, onTaskUpdate, onTaskCreate, onTaskDelete, onTasksDele
                                     <input
                                         type="checkbox"
                                         className="w-3 h-3 rounded border-gray-300 dark:border-gray-600 text-primary focus:ring-primary"
-                                        checked={selectedTasks.size === tasks.length && tasks.length > 0}
+                                        checked={selectedTasks.size === filteredTasks.length && filteredTasks.length > 0}
                                         onChange={(e) => {
-                                            if (e.target.checked) setSelectedTasks(new Set(tasks.map(t => t.id)));
+                                            if (e.target.checked) setSelectedTasks(new Set(filteredTasks.map(t => t.id)));
                                             else setSelectedTasks(new Set());
                                         }}
                                     />
@@ -107,7 +275,7 @@ const ListView = ({ tasks, onTaskUpdate, onTaskCreate, onTaskDelete, onTasksDele
                                         users={users}
                                         currentUser={currentUser}
                                     />
-                                    {!!parent.expanded && tasks.filter(t => t.parentId === parent.id).map(sub => (
+                                    {!!parent.expanded && filteredTasks.filter(t => t.parentId === parent.id).map(sub => (
                                         <TaskRow
                                             key={sub.id}
                                             task={sub}
@@ -128,6 +296,15 @@ const ListView = ({ tasks, onTaskUpdate, onTaskCreate, onTaskDelete, onTasksDele
                                     )}
                                 </React.Fragment>
                             ))}
+
+                            {/* Empty State */}
+                            {filteredTasks.length === 0 && (
+                                <tr>
+                                    <td colSpan="11" className="py-8 text-center text-gray-500 text-sm">
+                                        No tasks found matching your filters.
+                                    </td>
+                                </tr>
+                            )}
 
                             {/* Inline Create Row */}
                             <tr id="inline-create-row" className={`${isInlineCreateVisible ? '' : 'hidden'} group bg-blue-50/50 dark:bg-blue-900/10`}>
@@ -360,7 +537,9 @@ const TaskRow = ({ task, isSelected, onToggleSelect, onUpdate, isSubtask, onStar
             {/* Reporter */}
             <td className="py-0.5 px-2 align-middle border-r border-border-light dark:border-border-dark text-gray-700 dark:text-gray-300">
                 <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded-full bg-[#1F2E4D] text-white flex items-center justify-center text-[9px] font-bold">PG</div>
+                    <div className="w-5 h-5 rounded-full bg-[#1F2E4D] text-white flex items-center justify-center text-[9px] font-bold">
+                        {getInitials(task.reporter)}
+                    </div>
                     <span className="text-[12px]">{task.reporter}</span>
                 </div>
             </td>

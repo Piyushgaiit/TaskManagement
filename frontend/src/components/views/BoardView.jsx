@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 
-const BoardView = ({ tasks, onTaskUpdate }) => {
+const BoardView = ({ tasks, onTaskUpdate, currentUser }) => {
+
+    // Helper to get initials
+    const getInitials = (name) => {
+        if (!name) return 'PG';
+        const parts = name.trim().split(' ');
+        if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    };
 
     // Drag and Drop Logic
     const handleDragStart = (e, taskId) => {
@@ -13,7 +21,7 @@ const BoardView = ({ tasks, onTaskUpdate }) => {
 
     const handleDrop = async (e, newStatus) => {
         e.preventDefault();
-        const taskId = parseInt(e.dataTransfer.getData('text/plain'));
+        const taskId = e.dataTransfer.getData('text/plain');
         const task = tasks.find(t => t.id === taskId);
 
         if (task && task.status !== newStatus) {
@@ -31,7 +39,13 @@ const BoardView = ({ tasks, onTaskUpdate }) => {
     };
 
     const renderColumn = (status, title) => {
-        const filteredTasks = tasks.filter(t => t.status === status).sort((a, b) => b.id - a.id);
+        // Sort by ID is not reliable for strings if we subtract. Use localeCompare or just don't sort if order doesn't matter much.
+        // Assuming we want newest first (if IDs are monotonic).
+        const filteredTasks = tasks.filter(t => t.status === status).sort((a, b) => {
+            if (a.id < b.id) return 1;
+            if (a.id > b.id) return -1;
+            return 0;
+        });
 
         return (
             <div className="min-w-[280px] w-[280px] bg-surface-light dark:bg-surface-dark rounded-md p-3 flex flex-col gap-2 h-full max-h-full">
@@ -110,7 +124,7 @@ const BoardView = ({ tasks, onTaskUpdate }) => {
             <div className="flex items-center justify-between px-6 py-3 border-b border-border-light dark:border-border-dark flex-shrink-0">
                 <div className="flex items-center gap-4">
                     <div className="flex -space-x-1">
-                        <div className="w-8 h-8 rounded-full bg-[#1F2E4D] text-white flex items-center justify-center text-xs font-bold border-2 border-white dark:border-gray-800 z-10">PG</div>
+                        <div className="w-8 h-8 rounded-full bg-[#1F2E4D] text-white flex items-center justify-center text-xs font-bold border-2 border-white dark:border-gray-800 z-10">{getInitials(currentUser?.name)}</div>
                         <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-white dark:border-gray-800">
                             <span className="material-icons text-gray-500 text-lg">person_add</span>
                         </div>

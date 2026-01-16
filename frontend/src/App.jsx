@@ -164,18 +164,81 @@ function Dashboard({ user, onLogout, onUserUpdate }) {
 
     // Update Task
     const handleTaskUpdate = async (taskId, updates) => {
+        // Find the task in current state (before update)
+        const task = tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        // Rule 1: Prevent Parent -> DONE if subtasks match pending criteria
+        if (updates.status === 'DONE') {
+            const subtasks = tasks.filter(t => t.parentId === taskId);
+            // If it has subtasks, and ANY of them is NOT done, block the update
+            if (subtasks.length > 0) {
+                const hasPendingSubtasks = subtasks.some(t => t.status !== 'DONE');
+                if (hasPendingSubtasks) {
+                    alert('Cannot mark main task as Done because there are pending subtasks.');
+                    return; // Abort update
+                }
+            }
+        }
+
+        // Prepare for Optimistic Update
         const originalTasks = [...tasks];
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } : t));
+        let parentToUpdate = null;
+        let parentUpdates = null;
+
+        // Calculate potential Parent auto-updates (if this is a subtask)
+        if (task.parentId) {
+            const parent = tasks.find(p => p.id === task.parentId);
+            if (parent) {
+                // We need to look at the *projected* state of siblings
+                // Get all siblings (including self)
+                const siblings = tasks.filter(t => t.parentId === task.parentId);
+
+                // Check status of siblings *assuming* the current update applies
+                const areAllSiblingsDone = siblings.every(s => {
+                    const status = (s.id === taskId && updates.status) ? updates.status : s.status;
+                    return status === 'DONE';
+                });
+
+                if (areAllSiblingsDone && parent.status !== 'DONE') {
+                    // Auto-complete Parent
+                    parentToUpdate = parent;
+                    parentUpdates = { status: 'DONE', resolution: 'Done', updated: new Date().toLocaleString() };
+                } else if (!areAllSiblingsDone && parent.status === 'DONE' && updates.status && updates.status !== 'DONE') {
+                    // Re-open Parent (if previously done)
+                    parentToUpdate = parent;
+                    parentUpdates = { status: 'IN PROGRESS', resolution: 'Unresolved', updated: new Date().toLocaleString() };
+                }
+            }
+        }
+
+        // Apply Updates to State (Optimistic)
+        setTasks(prev => prev.map(t => {
+            if (t.id === taskId) return { ...t, ...updates };
+            if (parentToUpdate && t.id === parentToUpdate.id) return { ...t, ...parentUpdates };
+            return t;
+        }));
 
         try {
+            // 1. Update the actual task
             await taskService.updateTask(taskId, {
                 ...updates,
                 modifiedBy: user ? user.name : 'Unknown',
                 modifierId: user ? user.id : null
             });
+
+            // 2. Update the parent if necessary
+            if (parentToUpdate && parentUpdates) {
+                await taskService.updateTask(parentToUpdate.id, {
+                    ...parentUpdates,
+                    modifiedBy: user ? user.name : 'Unknown',
+                    modifierId: user ? user.id : null
+                });
+            }
         } catch (error) {
             console.error('Error updating task:', error);
-            setTasks(originalTasks);
+            setTasks(originalTasks); // Revert all changes
+            alert('Failed to update task.');
         }
     };
 
@@ -211,7 +274,7 @@ function Dashboard({ user, onLogout, onUserUpdate }) {
                 created: timestamp,
                 updated: timestamp,
                 startDate: taskData.startDate || now.toISOString(),
-                dueDate: taskData.dueDate || now.toISOString(),
+                dueDate: taskData.dueDate || null,
                 parentId: taskData.parentId || null,
                 expanded: 0,
                 projectId: activeProjectId // CRITICAL
@@ -306,18 +369,7 @@ function Dashboard({ user, onLogout, onUserUpdate }) {
                                 </div>
                                 <div className="flex items-center justify-between mb-2">
                                     <h1 className="text-xl font-bold text-text-light dark:text-text-dark">{currentProject.name}</h1>
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex -space-x-1">
-                                            <div className="w-7 h-7 rounded-full bg-[#1F2E4D] text-white flex items-center justify-center text-[10px] font-bold border-2 border-white dark:border-gray-800 z-10">PG</div>
-                                            <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-white dark:border-gray-800">
-                                                <span className="material-icons text-gray-500 text-base">person_add</span>
-                                            </div>
-                                        </div>
-                                        <button className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-text-light dark:text-text-dark font-medium transition-colors">Complete sprint</button>
-                                        <button className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-text-secondary-light dark:text-text-secondary-dark">
-                                            <span className="material-icons text-xl">more_horiz</span>
-                                        </button>
-                                    </div>
+
                                 </div>
 
                                 {/* Tabs */}
@@ -369,6 +421,7 @@ function Dashboard({ user, onLogout, onUserUpdate }) {
                                                         <BoardView
                                                             tasks={filteredTasks}
                                                             onTaskUpdate={handleTaskUpdate}
+                                                            currentUser={user}
                                                         />
                                                     )}
                                                     {activeTab === 'summary' && (
