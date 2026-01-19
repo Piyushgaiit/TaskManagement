@@ -6,17 +6,14 @@ const Sidebar = ({ projects = [], activeProjectId, onProjectSelect, onViewChange
     return (
         <aside className="w-64 bg-sidebar-light dark:bg-sidebar-dark flex-shrink-0 border-r border-border-light dark:border-border-dark flex flex-col py-6 overflow-y-auto hidden md:flex transition-colors duration-200">
             <div className="px-4 mb-2">
-                <div className="flex items-center gap-3 py-2 px-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer text-text-secondary-light dark:text-text-secondary-dark">
+                <div
+                    onClick={() => onViewChange && onViewChange('forYou')}
+                    className={`flex items-center gap-3 py-2 px-2 rounded cursor-pointer transition-colors ${currentView === 'forYou' ? 'bg-selection-blue-light dark:bg-selection-blue-dark text-primary font-medium' : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-text-secondary-light dark:text-text-secondary-dark'}`}
+                >
                     <span className="material-icons-outlined text-xl">account_circle</span>
                     <span className="font-medium">For you</span>
                 </div>
-                <div className="flex items-center justify-between py-2 px-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 cursor-pointer text-text-secondary-light dark:text-text-secondary-dark group">
-                    <div className="flex items-center gap-3">
-                        <span className="material-icons-outlined text-xl">schedule</span>
-                        <span className="font-medium">Recent</span>
-                    </div>
-                    <span className="material-icons-outlined text-base opacity-0 group-hover:opacity-100">chevron_right</span>
-                </div>
+
 
                 <div
                     onClick={() => onViewChange && onViewChange('users')}

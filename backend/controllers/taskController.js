@@ -8,10 +8,13 @@ const { createNotification } = require('../services/notificationService');
 // @route   GET /api/tasks
 // @access  Private
 const getTasks = asyncHandler(async (req, res) => {
-    const { projectId } = req.query;
+    const { projectId, assignee } = req.query;
     const query = {};
     if (projectId) {
         query.projectId = projectId;
+    }
+    if (assignee) {
+        query.assignee = assignee;
     }
 
     const tasks = await Task.find(query).sort({ _id: 1 });

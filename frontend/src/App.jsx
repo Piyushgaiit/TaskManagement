@@ -14,6 +14,7 @@ import Register from './pages/Register';
 import Users from './pages/Users';
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
+import ForYou from './pages/ForYou';
 
 import { authService } from './services/authService';
 import { projectService } from './services/projectService';
@@ -359,6 +360,8 @@ function Dashboard({ user, onLogout, onUserUpdate }) {
                         <Notifications onNotificationsChange={fetchUnreadCount} user={user} />
                     ) : currentView === 'profile' ? (
                         <Profile user={user} onUserUpdate={onUserUpdate} />
+                    ) : currentView === 'forYou' ? (
+                        <ForYou user={user} />
                     ) : (
                         <>
                             {/* Main Top Header */}
