@@ -8,6 +8,7 @@ import SummaryView from './components/views/SummaryView';
 import CalendarView from './components/views/CalendarView';
 import TimelineView from './components/views/TimelineView';
 import IssuesView from './components/views/IssuesView';
+import ReportsView from './components/views/ReportsView';
 import CreateProjectModal from './components/ui/CreateProjectModal';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -329,29 +330,33 @@ function Dashboard({ user, onLogout, onUserUpdate }) {
 
     return (
         <div className="flex flex-col h-screen overflow-hidden bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark font-body text-sm">
-            <Header
-                onCreateClick={() => setIsProjectModalOpen(true)}
-                user={user}
-                onLogout={onLogout}
-                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-                isSidebarOpen={isSidebarOpen}
-                onViewChange={setCurrentView}
-                searchQuery={searchQuery}
-                onSearch={setSearchQuery}
-                unreadCount={unreadCount}
-            />
+            <div className="print:hidden">
+                <Header
+                    onCreateClick={() => setIsProjectModalOpen(true)}
+                    user={user}
+                    onLogout={onLogout}
+                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                    isSidebarOpen={isSidebarOpen}
+                    onViewChange={setCurrentView}
+                    searchQuery={searchQuery}
+                    onSearch={setSearchQuery}
+                    unreadCount={unreadCount}
+                />
+            </div>
 
             <div className="flex flex-grow overflow-hidden">
-                <Sidebar
-                    projects={projects}
-                    activeProjectId={activeProjectId}
-                    onProjectSelect={setActiveProjectId}
-                    onViewChange={setCurrentView}
-                    currentView={currentView}
-                    isOpen={isSidebarOpen}
-                    user={user}
-                    onProjectDelete={handleProjectDelete}
-                />
+                <div className="print:hidden h-full flex-shrink-0">
+                    <Sidebar
+                        projects={projects}
+                        activeProjectId={activeProjectId}
+                        onProjectSelect={setActiveProjectId}
+                        onViewChange={setCurrentView}
+                        currentView={currentView}
+                        isOpen={isSidebarOpen}
+                        user={user}
+                        onProjectDelete={handleProjectDelete}
+                    />
+                </div>
 
                 <main className="flex-grow flex flex-col h-full overflow-hidden bg-background-light dark:bg-background-dark">
                     {currentView === 'users' ? (
@@ -365,7 +370,7 @@ function Dashboard({ user, onLogout, onUserUpdate }) {
                     ) : (
                         <>
                             {/* Main Top Header */}
-                            <div className="px-6 pt-3 pb-0 flex-shrink-0">
+                            <div className="px-6 pt-3 pb-0 flex-shrink-0 print:hidden">
                                 <div className="flex items-center gap-2 text-xs text-text-secondary-light dark:text-text-secondary-dark mb-2">
                                     <span>Projects</span>
                                     <span>/</span>
@@ -443,6 +448,13 @@ function Dashboard({ user, onLogout, onUserUpdate }) {
                                                         <IssuesView
                                                             tasks={filteredTasks}
                                                             onTaskUpdate={handleTaskUpdate}
+                                                            currentUser={user}
+                                                        />
+                                                    )}
+                                                    {activeTab === 'reports' && (
+                                                        <ReportsView
+                                                            tasks={filteredTasks}
+                                                            project={currentProject}
                                                             currentUser={user}
                                                         />
                                                     )}
